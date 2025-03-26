@@ -1,0 +1,28 @@
+**.gitignore**
+```
+# Virtual environment
+venv/
+.venv/
+
+# Django-related files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+db.sqlite3
+media/
+staticfiles/
+.env
+
+# Logs
+*.log
+
+# IDE and OS-specific files
+.vscode/
+.idea/
+.DS_Store
+
+# Node.js dependencies (если используешь npm/yarn)
+node_modules/
+package-lock.json
+yarn.lock
