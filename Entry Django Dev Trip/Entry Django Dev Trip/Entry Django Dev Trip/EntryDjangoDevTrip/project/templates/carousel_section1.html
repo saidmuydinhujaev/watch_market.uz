@@ -1,0 +1,229 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watch Carousel</title>
+    <style>
+        /* Основные стили */
+        .carousel-container {
+            overflow: hidden;
+            position: relative;
+            max-width: 1200px;
+            margin: 2rem auto;
+        }
+
+        .carousel-track {
+            display: flex;
+            transition: transform 0.5s ease-in-out;
+            gap: 20px;
+            padding: 10px 0;
+        }
+
+        .carousel-item {
+            min-width: 300px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .carousel-image {
+            width: 100%;
+            height: 200px;
+            object-fit: contain;
+            background: #f5f5f5;
+        }
+
+        .carousel-content {
+            padding: 15px;
+            text-align: center;
+        }
+
+        .carousel-nav {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .nav-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: none;
+            background: #333;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .nav-btn:hover {
+            background: #555;
+        }
+
+        /* Стили для деталей */
+        .watch-details {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: white;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .details-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+
+        .detail-image img {
+            max-width: 100%;
+            height: 400px;
+            object-fit: contain;
+        }
+
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 2rem auto;
+            display: none;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Основная карусель -->
+    <div class="carousel-container">
+        <div class="carousel-track" id="carouselTrack">
+            {% for watch in carousel_items %}
+            <div class="carousel-item" data-watch-id="{{ watch.id }}">
+                <a href="{% url 'watch_detail' watch.id %}">
+                    {% if watch.image %}
+                    <img src="{{ watch.image.url }}" alt="{{ watch.title }}" class="carousel-image">
+                    {% else %}
+                    <div class="carousel-image">No Image</div>
+                    {% endif %}
+                    <div class="carousel-content">
+                        <h3>{{ watch.title }}</h3>
+                    </div>
+                </a>
+            </div>
+            {% empty %}
+            <div class="empty-carousel">
+                <p>No watches available. Add some in admin panel!</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Навигация -->
+    <div class="carousel-nav">
+        <button class="nav-btn" id="prevBtn">&lt;</button>
+        <button class="nav-btn" id="nextBtn">&gt;</button>
+    </div>
+
+    <!-- Детали часов -->
+    <div class="watch-details" id="watchDetails">
+        <div class="loader"></div>
+        <div class="details-grid">
+            <div class="detail-image">
+                <img id="detailImage" src="" alt="Watch Details">
+            </div>
+            <div class="detail-specs">
+                <h2 id="detailTitle"></h2>
+                <div id="specsList"></div>
+                <p id="detailDescription"></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const track = document.getElementById('carouselTrack');
+            const items = document.querySelectorAll('.carousel-item');
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+            let currentIndex = 0;
+            let itemWidth = 320; // Базовая ширина + gap
+
+            // Инициализация
+            const initCarousel = () => {
+                if(items.length > 0) {
+                    itemWidth = items[0].offsetWidth + 20;
+                    updatePosition();
+                }
+            }
+
+            // Обновление позиции
+            const updatePosition = () => {
+                track.style.transform = `translateX(-${currentIndex * itemWidth}px)`;
+            }
+
+            // Кнопки навигации
+            prevBtn.addEventListener('click', () => {
+                currentIndex = Math.max(0, currentIndex - 1);
+                updatePosition();
+            });
+
+            nextBtn.addEventListener('click', () => {
+                currentIndex = Math.min(items.length - 1, currentIndex + 1);
+                updatePosition();
+            });
+
+            // Загрузка деталей
+            items.forEach(item => {
+                item.addEventListener('click', async () => {
+                    const loader = document.querySelector('.loader');
+                    const details = document.getElementById('watchDetails');
+                    const watchId = item.dataset.watchId;
+
+                    loader.style.display = 'block';
+                    details.style.display = 'none';
+
+                    try {
+                        const response = await fetch(`/watch/${watchId}/`);
+                        const data = await response.json();
+
+                        document.getElementById('detailImage').src = data.image || '{% static "placeholder.jpg" %}';
+                        document.getElementById('detailTitle').textContent = data.title;
+                        document.getElementById('detailDescription').textContent = data.description;
+
+                        const specsHtml = `
+                            <div class="spec-item"><strong>Brand:</strong> ${data.brand}</div>
+                            <div class="spec-item"><strong>Price:</strong> $${data.price}</div>
+                            <div class="spec-item"><strong>Material:</strong> ${data.material}</div>
+                            <div class="spec-item"><strong>Water Resistance:</strong> ${data.water_resistance}</div>
+                        `;
+
+                        document.getElementById('specsList').innerHTML = specsHtml;
+                        details.style.display = 'block';
+                    } catch (error) {
+
+                    } finally {
+                        loader.style.display = 'none';
+                    }
+                });
+            });
+
+            // Ресайз
+            window.addEventListener('resize', () => {
+                initCarousel();
+            });
+
+            initCarousel();
+        });
+    </script>
+</body> 
+</html>
